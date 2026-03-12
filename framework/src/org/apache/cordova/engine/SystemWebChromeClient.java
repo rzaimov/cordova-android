@@ -20,6 +20,8 @@ package org.apache.cordova.engine;
 
 import java.io.IOException;
 import java.io.File;
+import java.net.FileNameMap;
+import java.net.URLConnection;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
@@ -234,6 +236,16 @@ public class SystemWebChromeClient extends WebChromeClient {
         // Uses Intent.EXTRA_MIME_TYPES to pass multiple mime types.
         String[] acceptTypes = fileChooserParams.getAcceptTypes();
         if (acceptTypes.length > 1) {
+            FileNameMap fileNameMap = URLConnection.getFileNameMap();
+            for (int i = 0; i < acceptTypes.length; i++) {
+                if (acceptTypes[i].startsWith(".")) {
+                    String mimeType = fileNameMap.getContentTypeFor(acceptTypes[i]);
+                    if (mimeType != null) {
+                        acceptTypes[i] = mimeType;
+                    }
+                }
+            }
+
             fileIntent.setType("*/*"); // Accept all, filter mime types by Intent.EXTRA_MIME_TYPES.
             fileIntent.putExtra(Intent.EXTRA_MIME_TYPES, acceptTypes);
         }
