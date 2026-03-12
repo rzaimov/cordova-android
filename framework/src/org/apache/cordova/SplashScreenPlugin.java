@@ -65,7 +65,7 @@ public class SplashScreenPlugin extends CordovaPlugin {
     /**
      * Boolean flag to determine if the splash screen remains visible.
      */
-    private boolean keepOnScreen = true;
+    private static boolean keepOnScreen = true;
 
     @Override
     protected void pluginInitialize() {
