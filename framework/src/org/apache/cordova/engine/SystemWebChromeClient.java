@@ -23,6 +23,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
+import android.Manifest;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.Context;
@@ -60,6 +61,7 @@ import org.apache.cordova.LOG;
 public class SystemWebChromeClient extends WebChromeClient {
 
     private static final int FILECHOOSER_RESULTCODE = 5173;
+    private static final int CAMERA_PERMISSION_REQUESTCODE = 5174;
     private static final String LOG_TAG = "SystemWebChromeClient";
     private long MAX_QUOTA = 100 * 1024 * 1024;
     protected final SystemWebViewEngine parentEngine;
@@ -264,9 +266,60 @@ public class SystemWebChromeClient extends WebChromeClient {
         // Chooser intent
         Intent chooserIntent = Intent.createChooser(fileIntent, null);
         if (captureIntent != null) {
-            chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[] { captureIntent });
-        }
+            if (parentEngine.cordova.hasPermission(Manifest.permission.CAMERA)) {
+                chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[] { captureIntent });
+                this.showChooserIntent(chooserIntent, filePathsCallback, captureUri);
+            } else {
+                // CB-10120: The CAMERA permission does not need to be requested unless it is declared
+                // in AndroidManifest.xml. This plugin does not declare it, but others may and so we must
+                // check the package info to determine if the permission is present.
 
+                boolean requestCameraPermission = false;
+                try {
+                    PackageManager packageManager = parentEngine.cordova.getActivity().getPackageManager();
+                    String[] permissionsInPackage = packageManager.getPackageInfo(parentEngine.cordova.getActivity().getPackageName(), PackageManager.GET_PERMISSIONS).requestedPermissions;
+                    if (permissionsInPackage != null) {
+                        for (String permission : permissionsInPackage) {
+                            if (permission.equals(Manifest.permission.CAMERA)) {
+                                requestCameraPermission = true;
+                                break;
+                            }
+                        }
+                    }
+                } catch (PackageManager.NameNotFoundException e) {
+                    // We are requesting the info for our package, so this should
+                    // never be caught
+                }
+
+                if (requestCameraPermission) {
+                    Intent finalCaptureIntent = captureIntent;
+                    SystemWebChromeClient self = this;
+
+                    parentEngine.cordova.requestPermission(new CordovaPlugin() {
+                        @Override
+                        public void onRequestPermissionResult(int requestCode, String[] permissions, int[] grantResults) {
+                            // Handle result
+                            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                                chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[] {finalCaptureIntent});
+                            } else {
+                                LOG.w(LOG_TAG, "Camera permission not granted");
+                            }
+
+                            self.showChooserIntent(chooserIntent, filePathsCallback, captureUri);
+                        }
+                    }, CAMERA_PERMISSION_REQUESTCODE, Manifest.permission.CAMERA);
+                } else {
+                    chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[] { captureIntent });
+                    this.showChooserIntent(chooserIntent, filePathsCallback, captureUri);
+                }
+            }
+        } else {
+            this.showChooserIntent(chooserIntent, filePathsCallback, captureUri);
+        }
+        return true;
+    }
+
+    private Boolean showChooserIntent(Intent chooserIntent, final ValueCallback<Uri[]> filePathsCallback, final Uri captureUri) {
         try {
             LOG.i(LOG_TAG, "Starting intent for file chooser");
             parentEngine.cordova.startActivityForResult(new CordovaPlugin() {
