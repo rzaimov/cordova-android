@@ -39,6 +39,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.CookieManager;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
@@ -286,7 +287,15 @@ public class CordovaActivity extends AppCompatActivity {
         // If keepRunning
         this.keepRunning = preferences.getBoolean("KeepRunning", true);
 
-        appView.loadUrlIntoView(url, true);
+        CookieManager cookieManager = CookieManager.getInstance();
+        cookieManager.removeSessionCookies(cleared -> {
+            if (cleared) {
+                LOG.d(TAG, "Cleared session cookies");
+            }
+
+            cookieManager.flush(); // Ensure changes are written to disk
+            appView.loadUrlIntoView(url, true);
+        });
     }
 
     /**
