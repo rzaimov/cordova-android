@@ -253,12 +253,12 @@ public class SystemBarPlugin extends CordovaPlugin {
      * @param color color
      * @return boolean value true is returned when the color is light.
      */
-    private static boolean isColorLight(int color) {
+    private boolean isColorLight(int color) {
         double r = Color.red(color) / 255.0;
         double g = Color.green(color) / 255.0;
         double b = Color.blue(color) / 255.0;
         double luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-        return luminance > 0.5;
+        return luminance > preferences.getDouble("StatusBarLuminanceThreshold", 0.5);
     }
 
     /**
