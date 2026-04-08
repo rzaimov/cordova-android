@@ -45,10 +45,13 @@ import org.apache.cordova.CordovaResourceApi;
 import org.apache.cordova.LOG;
 import org.apache.cordova.PluginManager;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Hashtable;
+import java.util.Map;
 
 import androidx.webkit.WebViewAssetLoader;
 
@@ -435,6 +438,25 @@ public class SystemWebViewClient extends WebViewClient {
 
     @Override
     public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+        String url = request.getUrl().toString();
+        if (request.isForMainFrame() && !parentEngine.pluginManager.shouldAllowNavigation(url)) {
+            LOG.w(TAG, "URL blocked by allow list: " + url);
+
+            InputStream data = null;
+
+            // If errorUrl specified, then load it
+            final String errorUrl = parentEngine.preferences.getString("errorUrl", null);
+            if ((errorUrl != null) && (!url.equals(errorUrl))) {
+                String htmlContent = "<html><head><script>window.location.replace('" + errorUrl + "');</script></head><body></body></html>";
+                byte[] bytes = htmlContent.getBytes(StandardCharsets.UTF_8);
+                data = new ByteArrayInputStream(bytes);
+            }
+
+            Map<String, String> responseHeaders = Map.of("Access-Control-Allow-Origin", "*");
+
+            return new WebResourceResponse("text/html", "UTF-8", 403, "URL blocked by allow list", responseHeaders, data);
+        }
+
         return this.assetLoader.shouldInterceptRequest(request.getUrl());
     }
 
