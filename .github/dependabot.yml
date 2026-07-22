@@ -15,13 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This file used by release audit workflow
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    cooldown:
+      default-days: 4
+    schedule:
+      interval: "daily" # Every weekday, Monday to Friday
 
-**/*.txt
-.git/
-coverage/
-framework/build/
-node_modules/
-test/androidx/app/build/
-test/androidx/build/
-test/androidx/tools/
+  - package-ecosystem: "npm"
+    directory: "/"
+    cooldown:
+      default-days: 4
+    schedule:
+      interval: "weekly" # By default on a Monday
